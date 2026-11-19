@@ -29,12 +29,32 @@ Clinicians can switch on the same 3D view ("Visa i 3D"; the choice is remembered
 ## Finding: the gap is also in the standard
 EPS 1.0.0-ballot lets the *Functional status* section reference only `Condition`, `ClinicalImpression` and `DocumentReference` (`Composition.section:sectionFunctionalStatus.entry`, targetProfile; named slices `disability` → condition-eu-core and `functionalAssessment` → ClinicalImpression). An `Observation` — for example a scored assessment such as Barthel, or "walks 10 m with a rollator" as a measurement — cannot be placed there. We therefore sent Arne's functional status as Conditions. Exact excerpt and source: [eps-functional-status-finding.md](eps-functional-status-finding.md).
 
+## Alan's layers, in this build
+Mapped onto the six dimensions in Alan Rector's draft *PEN&PAD, GALEN & GRAIL: Thoughts on lessons learned* (Nov 2026, §2, pp. 1–3; cited as a draft).
+
+| Layer (Rector, Principle 2) | PEN&PAD-26 | Where |
+|---|---|---|
+| Meaning / knowledge | SNOMED CT, Swedish edition in Snowstorm: ECL membership and MRCM attribute ranges sanction every coded option at runtime | `model/arne-scenario.json` (candidates), `server.mjs` `/api/sct/*`, `public/arne-engine.js` `init()` |
+| Higher order knowledge | Not implemented | — |
+| Editorial information | Template `review_status` (all `draft_unreviewed`), the hand-written FMA→SNOMED table with its provenance notes, the SNOMED code audit and the QA report. A comparison with Clinergy is not done | `generator/templates/*.yaml`, `mapping/fma-to-snomed-arne.yaml`, `docs/snomed-code-audit.md`, `qa-rector-report.md` |
+| Linguistic knowledge | Deterministic templates in seven language variants (sv, nb, da, fi, de, en, sv-enkel) | `generator/templates/*.yaml` |
+| Interworking | FHIR R4 / EPS mapping (Conditions in section 47420-5) and FMA→SNOMED for the 3D body. A FHIR→openEHR import is not part of this build | `public/arne-engine.js` (`condition`, `epsBundle`), `mapping/fma-to-snomed-arne.yaml` |
+| Data | openEHR compositions in EHRbase (template `nimloth_penpad26_symptom.v0`), one fictional demo EHR; FHIR resources only as the exchange copy | `opt/build_opt.py`, `public/openehr.js` |
+
+## Nearest pre-coordinated concept (an ECL search, not classification)
+For a post-coordinated entry (e.g. pain + finding site + laterality), the clinician view shows the most general existing SNOMED CT concepts that match, found with ECL `(E) MINUS (< (E))`, where E is `<< focus : attribute = << value`. Example: right leg ulcer → *Chronic ulcer of right lower leg*; left hip pain → *Pain of left hip joint*; with a severity added → "inget hittat". This is an ECL search over existing concepts. It is **not** DL classification: unlike GALEN (draft p. 4, "a new temporary class was created, classified using a DL query"), we create no class and run no classifier at runtime.
+
 ## Send codes, render locally
 Sending and viewing are two different things. What goes to Swedish home care is the **coded record** (openEHR composition, FHIR resources, the receipt) plus one narrative in the **receiver's** language, Swedish. The receiver decides the language; nobody picks it from a menu. The drop-down **"Visa som mottagaren ser det"** only shows the same coded record rendered in another language, so a Danish, Norwegian, Finnish or German reader sees what *they* would read. Switching it sends nothing and changes nothing (tested: `test/i18n.mjs`). Nobody translates the message; each receiver reads the codes in their own language.
 
 Finnish needs case endings that depend on the body part ("vasemmassa lonkassa", "vasemman reisiluun"), so the Finnish fracture, pain and wound templates are whole sentences per side instead of slots. German avoids the problem by putting the side last, as clinical shorthand does ("Schenkelhalsfraktur links"). All 158 answer combinations of the scenario have a template in every language; a missing one would show SNOMED term + code + "no translation", never silently.
 
 **Native speakers of Norwegian, Danish, Finnish or German: corrections to `generator/templates/` are very welcome as pull requests.**
+
+## Notes on Alan's draft, from building this
+- **Pragmatic layer (p. 5).** The draft asks whether the linguistic layer should "be broadened to the pragmatic layer". Here the same coded entry is rendered for different readers: a Danish or Swedish clinician, and Arne in plain Swedish. A small, concrete case of a linguistic layer that has turned pragmatic.
+- **Sanctions (pp. 1, 4).** GRAIL's goal of allowing all and only what is sensible to say (p. 1) maps well onto SNOMED CT's MRCM: it was enough to drop laterality where the domain does not allow it and to keep severity values inside their range (QA assertion 7). It was not enough on its own for the side of a fracture (we use lateralised pre-coordinated concepts) or for anything uncoded such as walking distance, which lives only in the archetype.
+- **Automatic QA (p. 3).** In the spirit of GALEN's final-step queries of what should and should not be true (p. 3), nine assertions (six should, three should-not, with deliberately wrong options as negative controls) run before every push and deploy: [rector-assertions.test.ts](rector-assertions.test.ts), latest result [qa-rector-report.md](qa-rector-report.md).
 
 ## Rector's recipe, applied
 | Rector (interviews part 2 and 4) | What we built for Arne |
