@@ -1,7 +1,7 @@
 # Arne's function, in any language — PEN&PAD on the Arne scenario
 Nordic Hackathon 2026, PEN&PAD-26 bonus track · Nimloth (Anders Carlius)
 
-**Live demo:** https://penpad.nimloth.se (clinician mode) · https://penpad.nimloth.se/patient/ (patient mode). The demo sits behind Cloudflare Access; reviewers are invited by e-mail on request.
+**Live demo:** https://penpad.nimloth.se (clinician mode) · https://penpad.nimloth.se/patient/ (patient mode). The demo is open until 2026-11-26 (rate-limited); after that it is behind Cloudflare Access again and reviewers are invited by e-mail on request.
 **Contact:** TODO(Anders): GitHub handle or contact page
 
 ## The gap we aimed at
