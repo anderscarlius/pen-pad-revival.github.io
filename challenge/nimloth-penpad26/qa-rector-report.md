@@ -1,6 +1,6 @@
 # QA report — Rector assertions (Principle 3)
 
-Run: 2026-11-19T14:21:38.793Z · Snowstorm http://192.168.1.240:8080 (MAIN/SNOMEDCT-SE) · source: qa/rector-assertions.test.ts
+Run: 2026-11-19T21:13:14.633Z · Snowstorm <your-snowstorm> (MAIN/SNOMEDCT-SE) · source: qa/rector-assertions.test.ts
 
 | # | Kind | Assertion | Result | Detail |
 |---|---|---|---|---|

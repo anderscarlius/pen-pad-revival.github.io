@@ -1,6 +1,6 @@
 // Rector's Principle 3 (draft, p. 3): statements of what should and should not be true, run on every
-// build so that fixed errors cannot come back. Run: `pnpm qa:rector` (pre-push hook and scripts/moria-up.sh).
-// Needs live Snowstorm (192.168.1.240). Writes docs/qa-rector-report.md; exits 1 if any assertion is red.
+// build so that fixed errors cannot come back. Run: `pnpm qa:rector` (pre-push hook and scripts/deploy.sh).
+// Needs live Snowstorm (<lan-host>). Writes docs/qa-rector-report.md; exits 1 if any assertion is red.
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -8,7 +8,7 @@ import { createArne, parseYaml, LANGS, VIEW_LANGS } from '../public/arne-engine.
 import { penpadSymptomFlat } from '../public/openehr.js';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const SNOW = process.env.SNOWSTORM_URL || 'http://192.168.1.240:8080';
+const SNOW = process.env.SNOWSTORM_URL || '<your-snowstorm>';
 const BRANCH = encodeURIComponent('MAIN/SNOMEDCT-SE');
 const ALLOWED_MODULES = new Set(['900000000000207008', '45991000052106']); // International core, Swedish edition
 const PORT = 18810;
@@ -126,7 +126,7 @@ await check(8, 'should not', 'No language model is called during rendering', () 
 });
 
 await check(9, 'should not', 'No files from the Clinergy dump are in the build output', () => {
-  must(!existsSync(ROOT + 'vendor/clinergy-dump') || readFileSync(ROOT + 'scripts/moria-up.sh', 'utf8').includes("--exclude 'vendor/clinergy-dump'"), 'dump present and not excluded from deploy');
+  must(!existsSync(ROOT + 'vendor/clinergy-dump') || readFileSync(ROOT + 'scripts/deploy.sh', 'utf8').includes("--exclude 'vendor/clinergy-dump'"), 'dump present and not excluded from deploy');
   const hits: string[] = [];
   const walk = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (/clinergy/i.test(n)) hits.push(p.slice(ROOT.length)); if (statSync(p).isDirectory()) walk(p); } };
   for (const d of ['public', 'generator', 'model', 'mapping']) walk(ROOT + d);

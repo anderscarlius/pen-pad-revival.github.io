@@ -1,7 +1,9 @@
 # Arne's function, in any language — PEN&PAD on the Arne scenario
 Nordic Hackathon 2026, PEN&PAD-26 bonus track · Nimloth
 
-**Live demo:** https://penpad.nimloth.se (clinician mode) · https://penpad.nimloth.se/patient/ (patient mode). The demo is behind Cloudflare Access; reviewers are invited by e-mail on request.
+One coded record of Arne's functional status — entered by the clinician or by Arne himself, sanctioned by SNOMED CT, stored in openEHR, sent as an EPS document — and read by every receiver in their own language.
+
+**Live demo:** https://penpad.nimloth.se (clinician mode) · https://penpad.nimloth.se/patient/ (patient mode). Open during the hackathon, rate-limited.
 **Contact:** Anders Carlius, Northfactor AB — [e-post fylls i av Anders]
 
 ## The gap we aimed at
@@ -22,9 +24,10 @@ Clinicians can switch on the same 3D view ("Visa i 3D"; the choice is remembered
    - sv: *Opererad fraktur på vänster lårbenshals. Går med rollator inomhus cirka 10 meter. Klarar inte trappor. Andfådd vid gång.*
    - da: *Opereret fraktur af venstre lårbenshals. Går med rollator indendørs ca. 10 meter. Kan ikke gå på trapper. Åndenød ved gang.*
 3. **Functional status lands in an EPS document, with the validation result.** The findings become `Condition`s in the EPS section *Functional status* (LOINC 47420-5), added to a copy of the hackathon's Arne EPS bundle; the original is never overwritten.
-   - Published: [`Bundle/24787`](https://fhir.nimloth.se/fhir/Bundle/24787) (identifier `nimloth-eps-arne-penpad`, 9 sections; the Composition narrative is generated from `Composition.section`, so no section can be missing from it). [`Bundle/24785`](https://fhir.nimloth.se/fhir/Bundle/24785) is an earlier version whose Composition narrative still lacked the new section.
+   - Published: [`Bundle/24787`](https://fhir.nimloth.se/fhir/Bundle/24787) (identifier `nimloth-eps-arne-penpad`, 9 sections; the Composition narrative is generated from `Composition.section`, so no section can be missing from it).
    - Validation against `bundle-eu-eps` 1.0.0-ballot with the Swedish base IG (matchbox): **0 errors**, 127 warnings (the original fixture: 0 errors, 118 warnings; the extra warnings are an eHDSI value set the validator cannot resolve). `$validate` on fhir.nimloth.se, which has neither the EPS nor the Swedish base IG loaded, reports 4 errors — the same 4 "profile not found" errors (SEBasePatient, SEBaseOrganization, SEBasePractitioner, SEBasePractitionerRole) that the unchanged original gets there.
-   - A **receipt button** ("Mottaget och läst") writes a FHIR `Task` with status *completed*: [`Task/24788`](https://fhir.nimloth.se/fhir/Task/24788), focus `Bundle/24787` ([`Task/24786`](https://fhir.nimloth.se/fhir/Task/24786) belongs to the earlier version). A sent document is not a confirmed hand-over.
+   - A **receipt button** ("Mottaget och läst") writes a FHIR `Task` with status *completed*: [`Task/24788`](https://fhir.nimloth.se/fhir/Task/24788), focus `Bundle/24787`. A sent document is not a confirmed hand-over.
+   - Earlier versions: [`Bundle/24785`](https://fhir.nimloth.se/fhir/Bundle/24785), [`Task/24786`](https://fhir.nimloth.se/fhir/Task/24786) (narrative without the new section); `Bundle/24789` is an accidental empty test post — ignore it.
 
 ## Finding: the gap is also in the standard
 EPS 1.0.0-ballot lets the *Functional status* section reference only `Condition`, `ClinicalImpression` and `DocumentReference` (`Composition.section:sectionFunctionalStatus.entry`, targetProfile; named slices `disability` → condition-eu-core and `functionalAssessment` → ClinicalImpression). An `Observation` — for example a scored assessment such as Barthel, or "walks 10 m with a rollator" as a measurement — cannot be placed there. We therefore sent Arne's functional status as Conditions. Exact excerpt and source: [eps-functional-status-finding.md](eps-functional-status-finding.md).
@@ -63,7 +66,7 @@ Finnish needs case endings that depend on the body part ("vasemmassa lonkassa", 
 | The concept model *sanctions*: query it, don't invent concepts | Every option is checked at runtime: ECL membership, or the MRCM attribute range (laterality, severity). Unsanctioned options are dropped, or shown dotted when Snowstorm is down. All 43 codes used are active International concepts (audited) |
 | Assemble forms from fragments hung on the concept model | `model/arne-scenario.json` holds the fragments (topics, questions, candidate codes); no form rows are hard-coded in the UI |
 | Big toggle buttons, a visible "more", no death by a thousand clicks | Big toggles, at most three short questions per topic, one click to undo |
-| "Is this what you meant?": show back a processed result, easy to correct | Live sentence (six languages + plain Swedish) and SNOMED CT expression on every click; for free text, an optional local LLM (on our own box, never the cloud) may only pick among offered values (JSON schema), and its picks are marked until the clinician accepts them |
+| "Is this what you meant?": show back a processed result, easy to correct | Live sentence (six languages + plain Swedish) and SNOMED CT expression on every click; for free text, an optional local LLM (on our own hardware, never the cloud) may only pick among offered values (JSON schema), and its picks are marked until the clinician accepts them |
 | Different language for clinicians and patients | `sv` vs `sv-enkel` from the same record; patient mode in plain Swedish |
 | Be tolerant of broken parts | Snowstorm down → offline snapshot or unsanctioned + warning; EHRbase down → queued in the browser, "ej sparad"; FHIR down → resource shown, "ej skickad". Tested by pointing each at a wrong URL |
 | Show that options exist; let the user turn away at any time | The patient points on a 3D body (BodyParts3D meshes); a hand-written FMA→SNOMED table (laterality as its own field) turns the tap into a site; unknown meshes resolve to the nearest listed region or "unknown place – choose in the list", never a guessed code |
@@ -89,7 +92,7 @@ After each run we ask "Arne" one question — *was the doctor paying attention t
 The 3D body uses **BodyParts3D 4.0** (© The Database Center for Life Science, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html) as packaged in **[Human Atlas](https://github.com/ashemag/human-atlas) by ashemag (MIT)**. We load only 64 skeleton meshes plus the skin (1.6 MB gzip instead of ~33 MB); meshes are copied unchanged. Human Atlas itself is not part of this pull request; we link to it.
 
 ## Thanks
-To the PEN&PAD revival team for the [Clinergy extractor and notes](https://pen-pad-revival.github.io/docs/clinergy/) and the [thumb-pain proof of concept / walkthrough](https://pen-pad-revival.github.io/docs/clinergy-thumb-pain-demo/), and to the Nordic Hackathon organisers for the Arne scenario. We built on the ideas; we did not copy code or content from the Clinergy installation.
+To the PEN&PAD revival team for the [Clinergy notes](https://pen-pad-revival.github.io/docs/clinergy/), the [Clinergy extractor](https://github.com/erik-sundvalls-bots/clinergy-extractor), the [experimental workbench](https://erik-sundvalls-bots.github.io/penpad-clinergy-workbench/), the [list of Clinergy forms](https://github.com/pen-pad-revival/pen-pad-revival.github.io/blob/main/docs/clinergy/list-of-clinergy-forms.md), the original [Clinergy demo download](https://opengalen.eggbird.eu/download/ClinergyDemo.zip) and the [thumb-pain proof of concept / walkthrough](https://pen-pad-revival.github.io/docs/clinergy-thumb-pain-demo/), and to the Nordic Hackathon organisers for the Arne scenario. We built on the ideas; we did not copy code or content from the Clinergy installation.
 
 ## Screenshots
 All screenshots contain synthetic data only.
