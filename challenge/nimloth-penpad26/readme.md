@@ -13,10 +13,17 @@ We used the same coded record for both sides of the border:
 
 ## Three things worth looking at
 1. **The track's three steps in both modes**: orientation, refinement and confirmation.
-2. **The sentence generator removes the need for an interpreting son.** One coded entry is rendered deterministically in **Danish, Swedish, plain Swedish (for Arne) and English** side by side. The templates are hand-written and visible (`generator/templates/{da,sv,sv-enkel,en}.yaml`). No LLM generates text. A concept without a template is shown as SNOMED term + code + "no translation"; it never fails silently.
+2. **The sentence generator removes the need for an interpreting son.** One coded entry is rendered deterministically in **Swedish, Norwegian (bokmål), Danish, Finnish, German and English**, plus plain Swedish for Arne. The templates are hand-written and visible (`generator/templates/{sv,sv-enkel,nb,da,fi,de,en}.yaml`). No LLM generates text. A concept without a template is shown as SNOMED term + code + "no translation"; it never fails silently.
    - sv: *Opererad fraktur på vänster lårbenshals. Går med rollator inomhus cirka 10 meter. Klarar inte trappor. Andfådd vid gång.*
    - da: *Opereret fraktur af venstre lårbenshals. Går med rollator indendørs ca. 10 meter. Kan ikke gå på trapper. Åndenød ved gang.*
 3. **Functional status lands in an EPS document, with the validation result.** The functional-status findings become `Condition`s in the EPS section *Functional status* (LOINC 47420-5, read from `composition-eu-eps` 1.0.0-ballot, which allows Condition / ClinicalImpression / DocumentReference there). They are added to a copy of the hackathon's Arne EPS bundle; the original is never overwritten. The copy is published as [`Bundle/24785`](https://fhir.nimloth.se/fhir/Bundle/24785) (identifier `nimloth-eps-arne-penpad`) and validates against `bundle-eu-eps` 1.0.0-ballot (matchbox) with **0 errors** (the original fixture has 0 errors / 118 warnings; ours 127, the extra ones are an unavailable eHDSI value set). A **receipt button** ("Mottaget och läst") writes a FHIR `Task` with status *completed* ([`Task/24786`](https://fhir.nimloth.se/fhir/Task/24786), focus `Bundle/24785`): a sent document is not a confirmed hand-over.
+
+## Send codes, render locally
+Sending and viewing are two different things. What goes to Swedish home care is the **coded record** (openEHR composition, FHIR resources, the receipt) plus one narrative in the **receiver's** language, Swedish. The receiver decides the language; nobody picks it from a menu. The drop-down **"Visa som mottagaren ser det"** only shows the same coded record rendered in another language, so a Danish, Norwegian, Finnish or German reader sees what *they* would read. Switching it sends nothing and changes nothing (tested: `test/i18n.mjs`). Nobody translates the message; each receiver reads the codes in their own language.
+
+Finnish needs case endings that depend on the body part ("vasemmassa lonkassa", "vasemman reisiluun"), so the Finnish fracture, pain and wound templates are whole sentences per side instead of slots. German avoids the problem by putting the side last, as clinical shorthand does ("Schenkelhalsfraktur links"). All 158 answer combinations of the scenario have a template in every language; a missing one would show SNOMED term + code + "no translation", never silently.
+
+**Native speakers of Norwegian, Danish, Finnish or German: corrections to `generator/templates/` are very welcome as pull requests.**
 
 ## Rector's recipe, applied
 | Rector (interviews part 2 and 4) | What we built for Arne |
@@ -25,7 +32,7 @@ We used the same coded record for both sides of the border:
 | The concept model *sanctions*: query it, don't invent concepts | Every option is checked at runtime: ECL membership, or the MRCM attribute range (laterality, severity). Unsanctioned options are dropped, or shown dotted when Snowstorm is down |
 | Assemble forms from fragments hung on the concept model | `model/arne-scenario.json` holds the fragments (topics, questions, candidate codes); no form rows are hard-coded in the UI |
 | Big toggle buttons, a visible "more", no death by a thousand clicks | Big toggles, at most three short questions per topic, one click to undo |
-| "Is this what you meant?": show back a processed result, easy to correct | Live four-language sentence and SNOMED CT expression on every click; optional local LLM (on our own box, never the cloud) may only pick among offered values (JSON schema) and its picks are marked until the clinician accepts them |
+| "Is this what you meant?": show back a processed result, easy to correct | Live sentence (six languages + plain Swedish) and SNOMED CT expression on every click; optional local LLM (on our own box, never the cloud) may only pick among offered values (JSON schema) and its picks are marked until the clinician accepts them |
 | Different language for clinicians and patients | `sv` vs `sv-enkel` from the same record; patient mode in plain Swedish |
 | Be tolerant of broken parts | Snowstorm down → offline snapshot or unsanctioned + warning; EHRbase down → queued in the browser, "ej sparad"; FHIR down → resource shown, "ej skickad". Tested by pointing each at a wrong URL |
 | Show that options exist; let the user turn away at any time | Patient points on a 3D body (BodyParts3D meshes); a hand-written FMA→SNOMED table (`mapping/fma-to-snomed-arne.yaml`, codes confirmed in Snowstorm, laterality as its own field) turns the tap into a site; unknown meshes resolve to the nearest listed region or "unknown place – choose in the list", never a guessed code |
@@ -36,7 +43,7 @@ TODO(Anders): keep the actor-test section from the v0.1 draft (Rector, part 2: w
 
 ## Honest limitations
 - FMA→SNOMED is a hand-written table for this one scenario (hip, thigh, lower leg, foot, chest, lumbar back), not a general mapping. 3D is deliberately the default only in patient mode (see the actor test and Rector's "exhaustive is the enemy of the useful").
-- Danish and plain Swedish are hand-written templates for this one scenario, not a general translator.
+- All language templates are hand-written for this one scenario and marked `review_status: draft_unreviewed`; the view shows "Utkast – ej kliniskt granskat" (translated, with the Swedish text next to it). None has been reviewed by a native speaker yet. They are not a general translator.
 - Danish SNOMED CT terms are not loaded in our Snowstorm (only the international and Swedish editions), so the Danish text comes from our templates only.
 - Proxy consent for relatives is not solved; we only show provenance.
 - openEHR uses a small template generated for the demo (`nimloth_penpad26_symptom.v0`: encounter → story → symptom_sign + anatomical_location, plus exam), pruned from CKM archetypes; a validated functional-status template (e.g. Barthel) would be better.
@@ -53,7 +60,7 @@ To the PEN&PAD revival team for the [Clinergy extractor and notes](https://pen-p
 | | |
 |---|---|
 | ![Orientation](01-inriktning.png) Orientation: body map + topic list | ![Refinement](02-forfining.png) Refinement as short questions |
-| ![Four languages](03-fyra-sprak.png) One record, four languages | ![EPS validation](04-eps-validering.png) openEHR saved, EPS validated |
+| ![Six languages](03-sex-sprak.png) Sent in Swedish; the same record viewed in six languages, review status visible | ![EPS validation](04-eps-validering.png) openEHR saved, EPS validated |
 | ![Receipt](06-kvittens.png) Published EPS + "Mottaget och läst" receipt | |
 | ![Clinician 3D](08-kliniker-3d.png) Optional 3D in clinician mode: left hip → pain card, side pre-filled | |
 | ![Patient mode](05-patient-lage.png) Patient mode (relative answering) | ![3D body](07-patient-3d-hoft.png) Arne points at his left hip in 3D → "Du har ont i vänstra höften." / "Smerter i venstre hofte." |
