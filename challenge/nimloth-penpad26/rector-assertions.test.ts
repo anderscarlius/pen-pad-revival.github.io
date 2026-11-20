@@ -134,6 +134,89 @@ await check(9, 'should not', 'No files from the Clinergy dump are in the build o
   return 'public/, generator/, model/, mapping/ clean';
 });
 
+// ---------- v0.9: UI language (SV | EN) ----------
+import svDict, { review_status as svStatus } from '../public/i18n/sv.js';
+import enDict, { review_status as enStatus } from '../public/i18n/en.js';
+
+await check(10, 'should', 'Every UI key exists in both sv and en, and no UI string is empty', () => {
+  const sk = Object.keys(svDict), ek = Object.keys(enDict);
+  const missing = [...sk.filter(k => !(k in enDict)).map(k => `en lacks ${k}`), ...ek.filter(k => !(k in svDict)).map(k => `sv lacks ${k}`)];
+  must(!missing.length, missing.join(', '));
+  const empty = [...Object.entries(svDict), ...Object.entries(enDict)].filter(([, v]) => typeof v !== 'string' || !v.trim()).map(([k]) => k);
+  must(!empty.length, `empty: ${empty}`);
+  must(svStatus === 'source' && enStatus === 'draft_unreviewed', `review_status sv=${svStatus} en=${enStatus}`);
+  // clinical UI labels from the templates (q./o./topic./region.) also exist in English, draft_unreviewed
+  const lbl = (l: string) => Object.keys(templates[l]).filter(k => /^(q|o|topic|region)\./.test(k));
+  const noEn = lbl('sv').filter(k => !(k in templates.en));
+  must(!noEn.length, `en.yaml lacks ${noEn}`);
+  must(templates.en.review_status === 'draft_unreviewed', 'en.yaml not draft_unreviewed');
+  return `${sk.length} keys per language; ${lbl('sv').length} clinical labels in sv.yaml and en.yaml; en = draft_unreviewed`;
+});
+
+// Scanner for hardcoded Swedish UI text. UI files only; record content and the legacy thumb fixture are out of scope (see EXEMPT).
+const UI_HTML = ['public/index.html', 'public/patient/index.html'];
+const UI_JS = ['public/clinician.js', 'public/common.js', 'public/patient/patient.js', 'public/body3d.js', 'public/i18n/index.js'];
+const EXEMPT = 'public/arne-engine.js + public/openehr.js (record content and template fallbacks, not UI), public/thumb.html + app.js + engine.js (legacy thumb regression fixture, not linked from either mode)';
+const SV_WORDS = /[åäöÅÄÖ]|\b(och|inte|ej|eller|välj|visa|spara|skicka|tala|sparar|hittade|inget|ingen|kunde|kvittens|förslag|utkast|svarar|laddar|frågar|patienten|anhörig|kliniker|hej|nu)\b/i;
+function hardcoded(files: { name: string; src: string }[]) {
+  const hits: string[] = [];
+  for (const { name, src } of files) {
+    if (name.endsWith('.html')) {
+      const body = src.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+      for (const m of body.matchAll(/\s(title|placeholder|aria-label|alt)="([^"]*)"/g)) if (/\p{L}/u.test(m[2])) hits.push(`${name}: ${m[1]}="${m[2]}"`);
+      const text = body.replace(/<[^>]+>/g, ' ').replace(/&\w+;/g, ' ').split(/\s+/).filter(w => w && !/^(SV|EN|\||·|–|×)$/.test(w));
+      for (const w of text) if (/\p{L}/u.test(w)) hits.push(`${name}: text "${w}"`);
+    } else {
+      src.split('\n').forEach((line, i) => {
+        if (line.includes('i18n-exempt')) return;
+        const code = line.replace(/(^|\s)\/\/.*$/, '');
+        for (const m of code.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)) {
+          const lit = (m[1] ?? m[2] ?? m[3]).replace(/\$\{[^}]*\}/g, ' ');
+          if (SV_WORDS.test(lit)) hits.push(`${name}:${i + 1}: ${JSON.stringify(lit)}`);
+        }
+      });
+    }
+  }
+  return hits;
+}
+await check(11, 'should not', 'No Swedish UI text is hardcoded outside the dictionaries (negative control: an injected string must be caught)', () => {
+  const files = [...UI_HTML, ...UI_JS].map(name => ({ name, src: readFileSync(ROOT + name, 'utf8') }));
+  const hits = hardcoded(files);
+  must(!hits.length, hits.slice(0, 8).join(' ; '));
+  // negative control: the same scanner must fail on a deliberately injected hardcoded string, in JS and in HTML
+  const injected = files.map(f => f.name === 'public/clinician.js' ? { ...f, src: f.src + "\nh('p', {}, 'Spara nu');\n" }
+    : f.name === 'public/index.html' ? { ...f, src: f.src.replace('<main>', '<main><p>Hej Arne</p>') } : f);
+  const caught = hardcoded(injected);
+  const where = [...new Set(caught.map(c => c.split(':')[0]))];
+  must(where.length === 2 && where.includes('public/clinician.js') && where.includes('public/index.html'), `negative control not caught in both files: ${caught.join(' ; ')}`);
+  return `${files.length} UI files clean; negative control caught in ${where.join(' + ')} (${caught.length} hits); exempt: ${EXEMPT}`;
+});
+
+await check(12, 'should', 'Switching UI language does not change the coded record (hash before/after) and calls no server', async () => {
+  // Minimal DOM stand-ins: the switch relabels the page only.
+  (globalThis as any).document = { documentElement: {}, body: { dataset: {} }, querySelectorAll: () => [], getElementById: () => null };
+  const i18n = await import('../public/i18n/index.js');
+  let calls = 0; const real = globalThis.fetch; globalThis.fetch = (async () => { calls++; throw new Error('no network'); }) as any;
+  const record = () => hash({ F, view: arne.viewAs(F), flat: Object.fromEntries(Object.entries(penpadSymptomFlat(arne, F)).filter(([k]) => !/time$/.test(k))) });
+  const before = record();
+  const relabel = () => { for (const [tk, t] of Object.entries<any>(model.topics)) { arne.topicLabel(i18n.uiLang(), tk); for (const q of t.questions) { arne.qLabel(i18n.uiLang(), tk, q.key); q.options.forEach((o: any) => arne.oLabel(i18n.uiLang(), tk, q.key, o)); } } Object.keys(svDict).forEach(k => i18n.t(k)); };
+  i18n.onLang(relabel);
+  try { for (let i = 0; i < 3; i++) { i18n.setLang('en'); i18n.setLang('sv'); } } finally { globalThis.fetch = real; }
+  const after = record();
+  must(before === after, 'coded record changed');
+  must(calls === 0, `${calls} network calls during language switch`);
+  return `sha256 ${before.slice(0, 12)}… unchanged after 6 switches; 0 network calls`;
+});
+
+await check(13, 'should not', 'No language model is used for UI texts', () => {
+  for (const f of ['public/i18n/sv.js', 'public/i18n/en.js', 'public/i18n/index.js']) {
+    const src = readFileSync(ROOT + f, 'utf8');
+    must(!/ollama|api\/llm|fetch\s*\(|XMLHttpRequest|import\s*\(/i.test(src), `${f} reaches out for text`);
+  }
+  must(!/import .* from/.test(readFileSync(ROOT + 'public/i18n/sv.js', 'utf8') + readFileSync(ROOT + 'public/i18n/en.js', 'utf8')), 'dictionaries import code');
+  return 'dictionaries are static literals; t() only reads them';
+});
+
 server.kill();
 const when = new Date().toISOString();
 const lines = ['# QA report — Rector assertions (Principle 3)', '', `Run: ${when} · Snowstorm ${SNOW} (MAIN/SNOMEDCT-SE) · source: qa/rector-assertions.test.ts`, '',

@@ -1,6 +1,6 @@
 # QA report — Rector assertions (Principle 3)
 
-Run: 2026-11-19T21:13:14.633Z · Snowstorm <your-snowstorm> (MAIN/SNOMEDCT-SE) · source: qa/rector-assertions.test.ts
+Run: 2026-11-20T10:33:34.017Z · Snowstorm <your-snowstorm> (MAIN/SNOMEDCT-SE) · source: qa/rector-assertions.test.ts
 
 | # | Kind | Assertion | Result | Detail |
 |---|---|---|---|---|
@@ -13,3 +13,7 @@ Run: 2026-11-19T21:13:14.633Z · Snowstorm <your-snowstorm> (MAIN/SNOMEDCT-SE) �
 | 7 | should not | No refinement row offers what MRCM or the archetype forbids (3 deliberate wrong options + MRCM domain check) | OK | 3/3 wrong options dropped; Severity not allowed on Hip region structure |
 | 8 | should not | No language model is called during rendering | OK | 1106 renders, 0 network calls |
 | 9 | should not | No files from the Clinergy dump are in the build output | OK | public/, generator/, model/, mapping/ clean |
+| 10 | should | Every UI key exists in both sv and en, and no UI string is empty | OK | 133 keys per language; 49 clinical labels in sv.yaml and en.yaml; en = draft_unreviewed |
+| 11 | should not | No Swedish UI text is hardcoded outside the dictionaries (negative control: an injected string must be caught) | OK | 7 UI files clean; negative control caught in public/index.html + public/clinician.js (3 hits); exempt: public/arne-engine.js + public/openehr.js (record content and template fallbacks, not UI), public/thumb.html + app.js + engine.js (legacy thumb regression fixture, not linked from either mode) |
+| 12 | should | Switching UI language does not change the coded record (hash before/after) and calls no server | OK | sha256 f436c8bb9d16… unchanged after 6 switches; 0 network calls |
+| 13 | should not | No language model is used for UI texts | OK | dictionaries are static literals; t() only reads them |

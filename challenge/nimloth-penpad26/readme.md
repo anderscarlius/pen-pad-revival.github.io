@@ -12,6 +12,7 @@ Arne (83, fictional) breaks his hip on the stairs in Copenhagen and is discharge
 We used the same coded record for both sides of the border:
 - **Clinician mode** (discharge, Rigshospitalet) follows the track's three steps. *Orientation:* 2D body map (hip, leg, chest), topic list (transfer, walking, stairs, breathing, pain, wound), or free text / speech. *Refinement:* only follow-ups that make sense, as short questions (fracture → left or right? operated? · walking → aid? how far? · breathing → breathless at rest, walking or stairs?). *Confirmation:* "Is this what you meant?" as a live sentence.
 - **Patient mode** (at home in Sweden): plain Swedish, big buttons and a **3D body** to point at (where it hurts, where the leg ulcer is), with the same choices as a list next to it. Arne answers himself, or his son does it for him. The result is saved as a **draft marked patient-reported**, with "reported by: patient / relative". The home-care nurse opens the draft in clinician mode, refines it and confirms it. We show provenance; we do not try to solve proxy consent.
+- **Interface language:** both modes have an **SV | EN** switch in the header. The interface is in Swedish and English; the English interface text (including clinical labels) is `draft_unreviewed`. This is separate from the record's language: switching re-labels the page only, sends nothing and leaves the coded record unchanged (QA assertion 12).
 
 ## Design choice: 3D only by default for the patient
 3D is the default only in patient mode. For clinicians, a list/2D map is faster — 'exhaustive is the enemy of the useful' (Rector, Part 2). We'd like to test this with the actor test.
@@ -57,7 +58,7 @@ Finnish needs case endings that depend on the body part ("vasemmassa lonkassa", 
 ## Notes on Alan's draft, from building this
 - **Pragmatic layer (p. 5).** The draft asks whether the linguistic layer should "be broadened to the pragmatic layer". Here the same coded entry is rendered for different readers: a Danish or Swedish clinician, and Arne in plain Swedish. A small, concrete case of a linguistic layer that has turned pragmatic.
 - **Sanctions (pp. 1, 4).** GRAIL's goal of allowing all and only what is sensible to say (p. 1) maps well onto SNOMED CT's MRCM: it was enough to drop laterality where the domain does not allow it and to keep severity values inside their range (QA assertion 7). It was not enough on its own for the side of a fracture (we use lateralised pre-coordinated concepts) or for anything uncoded such as walking distance, which lives only in the archetype.
-- **Automatic QA (p. 3).** In the spirit of GALEN's final-step queries of what should and should not be true (p. 3), nine assertions (six should, three should-not, with deliberately wrong options as negative controls) run before every push and deploy: [rector-assertions.test.ts](rector-assertions.test.ts), latest result [qa-rector-report.md](qa-rector-report.md).
+- **Automatic QA (p. 3).** In the spirit of GALEN's final-step queries of what should and should not be true (p. 3), thirteen assertions (eight should, five should-not, with deliberately wrong options and an injected hardcoded string as negative controls) run before every push and deploy: [rector-assertions.test.ts](rector-assertions.test.ts), latest result [qa-rector-report.md](qa-rector-report.md).
 
 ## Rector's recipe, applied
 | Rector (interviews part 2 and 4) | What we built for Arne |
@@ -104,3 +105,5 @@ All screenshots contain synthetic data only.
 | ![Receipt UI](06-kvittens.png) Receipt button in the UI (local rehearsal, stub FHIR) | ![Clinician 3D](08-kliniker-3d.png) Clinician mode with "Visa i 3D" on: left hip → pain card, side pre-filled |
 | ![Published EPS](09-eps-funktionsstatus.png) Published `Bundle/24787`: Functional status section and generated Composition narrative | ![Published receipt](10-kvittens-task.png) Published `Task/24788` (completed, focus `Bundle/24787`) |
 | ![Patient mode](05-patient-lage.png) Patient mode (relative answering) | ![3D body](07-patient-3d-hoft.png) Arne points at his left hip in 3D → "Du har ont i vänstra höften." / "Smerter i venstre hofte." |
+| ![Clinician, Swedish UI](11-kliniker-sv.png) Clinician mode, Swedish interface | ![Clinician, English UI](12-kliniker-en.png) Clinician mode, English interface (draft_unreviewed); the record sent to Sweden stays Swedish |
+| ![Patient, Swedish UI](13-patient-sv.png) Patient mode, Swedish interface (plain Swedish) | ![Patient, English UI](14-patient-en.png) Patient mode, English interface (draft_unreviewed) |
