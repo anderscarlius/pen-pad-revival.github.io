@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dynamic Clinical Documentation in Primary Care</title>
+  <style>
+    :root {
+      --bg: #f4f7f8;
+      --surface: #ffffff;
+      --text: #18323a;
+      --muted: #64787e;
+      --line: #dbe4e6;
+      --primary: #247b82;
+      --primary-dark: #17666c;
+      --primary-soft: #eaf4f4;
+      --warm: #f6f8f8;
+      --warning: #9a6a16;
+      --shadow: 0 8px 24px rgba(35, 73, 80, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .header-inner, .app {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px 28px 14px;
+    }
+    .title-wrap h1 {
+      margin: 0 0 3px;
+      font-size: 21px;
+      letter-spacing: -0.2px;
+    }
+    .subtitle { color: var(--muted); font-size: 14px; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .poc-label {
+      padding: 6px 9px;
+      border: 1px solid #cbdadb;
+      border-radius: 999px;
+      background: var(--warm);
+      color: #52676c;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .reset-btn {
+      border: 0;
+      background: transparent;
+      color: var(--primary-dark);
+      font-weight: 700;
+      padding: 7px 4px;
+    }
+
+    .progress {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 28px 14px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .progress-step {
+      position: relative;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 7px 8px 8px 27px;
+      border-bottom: 3px solid var(--line);
+    }
+    .progress-step::before {
+      content: attr(data-number);
+      position: absolute;
+      left: 7px;
+      top: 5px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e4ebec;
+      color: #6a7d82;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .progress-step.active {
+      color: var(--primary-dark);
+      border-bottom-color: var(--primary);
+      font-weight: 800;
+    }
+    .progress-step.active::before {
+      background: var(--primary);
+      color: white;
+    }
+    .progress-step.complete { border-bottom-color: #91babe; }
+
+    .app { padding: 26px 28px 48px; }
+    .screen { display: none; animation: fade 180ms ease-out; }
+    .screen.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+    .screen-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .screen-heading h2 {
+      margin: 0;
+      font-size: 23px;
+      letter-spacing: -0.3px;
+    }
+    .screen-heading p { margin: 4px 0 0; color: var(--muted); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .panel h3 { margin: 0 0 12px; font-size: 16px; }
+    .panel-description { margin: -5px 0 14px; color: var(--muted); font-size: 13px; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 68px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 12px;
+      background: #fff;
+      cursor: pointer;
+      transition: 120ms ease;
+    }
+    .check-card:hover { border-color: #a9c4c7; }
+    .check-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .check-card input { margin: 3px 0 0; accent-color: var(--primary); }
+    .check-card strong { display: block; margin-bottom: 2px; }
+    .check-card small { color: var(--muted); display: block; }
+
+    .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .choice {
+      position: relative;
+    }
+    .choice input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .choice span {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 8px 13px;
+      min-width: 64px;
+      text-align: center;
+      cursor: pointer;
+      color: #40575c;
+      transition: 120ms ease;
+    }
+    .choice input:checked + span {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+    .choice input:focus-visible + span { outline: 3px solid rgba(36,123,130,.20); }
+
+    .inline-question {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+    .inline-question + .inline-question { margin-top: 12px; }
+    .inline-question strong { font-size: 14px; }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .actions.left { justify-content: flex-start; }
+    .primary-btn, .secondary-btn, .text-btn {
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-weight: 800;
+    }
+    .primary-btn {
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    .primary-btn:hover { background: var(--primary-dark); }
+    .secondary-btn {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+    }
+    .text-btn {
+      border: 0;
+      background: transparent;
+      color: var(--primary-dark);
+    }
+
+    .notice {
+      border-left: 3px solid #a9c4c7;
+      background: #f7faf9;
+      color: #52676c;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .not-implemented {
+      border: 1px solid #eadcb6;
+      background: #fffaf0;
+      color: #7d641f;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .area-list { display: grid; gap: 8px; }
+    .area-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      overflow: hidden;
+    }
+    .area-card.selected { border-color: var(--primary); }
+    .area-toggle {
+      width: 100%;
+      border: 0;
+      background: white;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      text-align: left;
+      font-weight: 800;
+    }
+    .area-card.selected .area-toggle { background: var(--primary-soft); }
+    .area-toggle::after { content: "+"; font-size: 20px; color: var(--primary); }
+    .area-card.open .area-toggle::after { content: "−"; }
+    .area-body { display: none; padding: 4px 14px 14px; }
+    .area-card.open .area-body { display: block; }
+    .symptom-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid #edf1f1;
+    }
+    .symptom-row:first-child { border-top: 0; }
+    .ear-laterality {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 0 10px 12px;
+      border-top: 1px solid #edf1f1;
+      background: #fbfdfd;
+    }
+    .ear-laterality[hidden] { display: none; }
+
+    .exam-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      align-items: start;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid #edf1f1;
+    }
+    .exam-row:first-child { border-top: 0; }
+    .exam-label { padding-top: 7px; font-weight: 700; }
+    .exam-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .refinement {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      max-width: 540px;
+    }
+    .refinement .choice span { min-width: auto; padding: 6px 9px; font-size: 13px; }
+    .free-text-inline {
+      display: none;
+      width: 300px;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      resize: vertical;
+      margin-top: 4px;
+    }
+    .free-text-inline.visible { display: block; }
+
+    .assessment-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .field label {
+      display: block;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+    .field input, .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--text);
+      padding: 11px 12px;
+    }
+    .field textarea { min-height: 88px; resize: vertical; }
+    .field input:focus, .field textarea:focus, .free-text-inline:focus {
+      outline: 3px solid rgba(36,123,130,.14);
+      border-color: var(--primary);
+    }
+
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 14px;
+    }
+    .note-box {
+      white-space: pre-line;
+      background: #fbfdfd;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 260px;
+    }
+    .structured-list {
+      margin: 0;
+      display: grid;
+      grid-template-columns: minmax(140px, .8fr) 1.2fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .structured-list dt, .structured-list dd {
+      margin: 0;
+      padding: 8px 10px;
+      border-bottom: 1px solid #edf1f1;
+      font-size: 13px;
+    }
+    .structured-list dt { background: var(--warm); font-weight: 800; }
+    .structured-list dt:nth-last-child(2), .structured-list dd:last-child { border-bottom: 0; }
+    .validation-status {
+      display: none;
+      margin-top: 14px;
+      border: 1px solid #abd0b7;
+      background: #eef8f1;
+      color: #315e40;
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 800;
+    }
+    .validation-status.visible { display: block; }
+
+    @media (max-width: 760px) {
+      .header-inner { align-items: flex-start; padding: 14px 16px 10px; }
+      .title-wrap h1 { font-size: 18px; }
+      .progress { padding: 0 10px 10px; gap: 2px; overflow-x: auto; }
+      .progress-step { min-width: 105px; font-size: 11px; }
+      .app { padding: 18px 12px 36px; }
+      .grid-2, .output-grid { grid-template-columns: 1fr; }
+      .inline-question { grid-template-columns: 1fr; gap: 7px; }
+      .symptom-row, .exam-row { grid-template-columns: 1fr; }
+      .exam-side { align-items: flex-start; }
+      .refinement { justify-content: flex-start; }
+      .actions { flex-wrap: wrap; }
+      .header-actions { max-width: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="header-inner">
+      <div class="title-wrap">
+        <h1>Dynamic Clinical Documentation in Primary Care</h1>
+        <div class="subtitle">Prototype: Pre-filtered Infection Clinic – Acute Otitis Media Case</div>
+      </div>
+      <div class="header-actions">
+        <span class="poc-label">Proof of concept – not clinical decision support</span>
+        <button class="reset-btn" type="button" id="resetBtn">Start over</button>
+      </div>
+    </div>
+    <nav class="progress" aria-label="Workflow progress" id="progress">
+      <div class="progress-step active" data-step="1" data-number="1">Choose infection site</div>
+      <div class="progress-step" data-step="2" data-number="2">Refine clinical presentation</div>
+      <div class="progress-step" data-step="3" data-number="3">Targeted examination</div>
+      <div class="progress-step" data-step="4" data-number="4">Assessment and plan</div>
+      <div class="progress-step" data-step="5" data-number="5">Validate documentation</div>
+    </nav>
+  </header>
+
+  <main class="app">
+    <!-- Screen 1: initial targeting -->
+    <section class="screen active" id="screen1">
+      <div class="screen-heading">
+        <h2>1. Choose infection site</h2>
+      </div>
+      <div class="panel">
+        <h3>Which area is relevant?</h3>
+        <div class="grid-2" id="areaSelection">
+          <label class="check-card">
+            <input type="checkbox" value="Upper and lower respiratory tract">
+            <span><strong>Upper and lower respiratory tract</strong><small>Pharynx, nose, sinuses, ears, bronchi and lungs</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Skin and soft tissue">
+            <span><strong>Skin and soft tissue</strong><small>Superficial skin layers, wounds and hair follicles</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Urinary tract">
+            <span><strong>Urinary tract</strong><small>Bladder, urethra and renal pelvis</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Gastrointestinal tract">
+            <span><strong>Gastrointestinal tract</strong><small>Stomach and intestines</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Eyes">
+            <span><strong>Eyes</strong><small>Conjunctiva</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Genital area">
+            <span><strong>Genital area</strong><small>External and internal genital organs</small></span>
+          </label>
+          <label class="check-card">
+            <input type="checkbox" value="Other">
+            <span><strong>Other</strong><small>Another problem area</small></span>
+          </label>
+        </div>
+        <div class="not-implemented" id="notImplemented" hidden>This area is not implemented in this MVP.</div>
+      </div>
+
+      <div class="panel">
+        <div class="inline-question">
+          <strong>Fever ≥38.5 °C?</strong>
+          <div class="choice-row" data-choice-group="fever">
+            <label class="choice"><input type="radio" name="fever" value="Yes"><span>Yes</span></label>
+            <label class="choice"><input type="radio" name="fever" value="No"><span>No</span></label>
+            <label class="choice"><input type="radio" name="fever" value="Unclear"><span>Unclear</span></label>
+          </div>
+        </div>
+        <div class="inline-question">
+          <strong>Course</strong>
+          <div class="choice-row" data-choice-group="course">
+            <label class="choice"><input type="radio" name="course" value="Acute"><span>Acute</span></label>
+            <label class="choice"><input type="radio" name="course" value=">2–3 weeks"><span>&gt;2–3 weeks</span></label>
+            <label class="choice"><input type="radio" name="course" value="Unclear"><span>Unclear</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary-btn" type="button" id="continueToScreen2">Continue</button>
+      </div>
+    </section>
+
+    <!-- Screen 2: dynamic refinement -->
+    <section class="screen" id="screen2">
+      <div class="screen-heading">
+        <div>
+          <h2>2. Refine clinical presentation</h2>
+          <p>Select the information relevant to this encounter.</p>
+        </div>
+        <button class="secondary-btn" type="button" id="demoSymptoms">Load demo example</button>
+      </div>
+      <div class="area-list">
+        <article class="area-card" data-area="svalg">
+          <button class="area-toggle" type="button">Pharynx and tonsils</button>
+          <div class="area-body">
+            <div class="symptom-row" data-symptom="halsont"><span>Sore throat / pain on swallowing</span><div class="choice-row" data-values="symptom-halsont"></div></div>
+            <div class="symptom-row" data-symptom="lymf"><span>Swollen or tender cervical lymph nodes</span><div class="choice-row" data-values="symptom-lymf"></div></div>
+            <div class="symptom-row" data-symptom="rodnad"><span>Pharyngeal redness/swelling or tonsillar exudate</span><div class="choice-row" data-values="symptom-rodnad"></div></div>
+            <textarea class="free-text-inline" data-free="svalg" placeholder="Other / free text"></textarea>
+          </div>
+        </article>
+
+        <article class="area-card" data-area="nasa">
+          <button class="area-toggle" type="button">Nose and sinuses</button>
+          <div class="area-body">
+            <div class="symptom-row" data-symptom="nastappa"><span>Nasal congestion / runny nose</span><div class="choice-row" data-values="symptom-nastappa"></div></div>
+            <div class="symptom-row" data-symptom="nysning"><span>Sneezing / irritation</span><div class="choice-row" data-values="symptom-nysning"></div></div>
+            <div class="symptom-row" data-symptom="ansiktstryck"><span>Facial pressure or pain</span><div class="choice-row" data-values="symptom-ansiktstryck"></div></div>
+            <div class="symptom-row" data-symptom="luktsinne"><span>Reduced sense of smell / upper jaw tooth pain</span><div class="choice-row" data-values="symptom-luktsinne"></div></div>
+            <textarea class="free-text-inline" data-free="nasa" placeholder="Other / free text"></textarea>
+          </div>
+        </article>
+
+        <article class="area-card" data-area="oron" id="earArea">
+          <button class="area-toggle" type="button">Ear</button>
+          <div class="area-body">
+            <div class="ear-laterality" id="earLaterality" hidden>
+              <strong>Side</strong>
+              <div class="choice-row" data-choice-group="laterality">
+                <label class="choice"><input type="radio" name="laterality" value="Right"><span>Right</span></label>
+                <label class="choice"><input type="radio" name="laterality" value="Left"><span>Left</span></label>
+                <label class="choice"><input type="radio" name="laterality" value="Bilateral"><span>Bilateral</span></label>
+              </div>
+            </div>
+            <div class="symptom-row" data-symptom="oronvark"><span>Ear pain</span><div class="choice-row" data-values="symptom-oronvark"></div></div>
+            <div class="symptom-row" data-symptom="horsel"><span>Blocked-ear sensation / hearing changes</span><div class="choice-row" data-values="symptom-horsel"></div></div>
+            <div class="symptom-row" data-symptom="sekretion"><span>Ear discharge</span><div class="choice-row" data-values="symptom-sekretion"></div></div>
+            <textarea class="free-text-inline" data-free="oron" placeholder="Other / free text"></textarea>
+          </div>
+        </article>
+
+        <article class="area-card" data-area="luftror">
+          <button class="area-toggle" type="button">Bronchi and lungs</button>
+          <div class="area-body">
+            <div class="symptom-row" data-symptom="hosta"><span>Cough</span><div class="choice-row" data-values="symptom-hosta"></div></div>
+            <div class="symptom-row" data-symptom="andfad"><span>Shortness of breath / laboured breathing</span><div class="choice-row" data-values="symptom-andfad"></div></div>
+            <div class="symptom-row" data-symptom="brost"><span>Pleuritic chest pain</span><div class="choice-row" data-values="symptom-brost"></div></div>
+            <div class="symptom-row" data-symptom="feberfrossa"><span>Fever / chills / feeling unwell</span><div class="choice-row" data-values="symptom-feberfrossa"></div></div>
+            <div class="symptom-row" data-symptom="pipande"><span>Wheezing</span><div class="choice-row" data-values="symptom-pipande"></div></div>
+            <textarea class="free-text-inline" data-free="luftror" placeholder="Other / free text"></textarea>
+          </div>
+        </article>
+      </div>
+      <div class="actions">
+        <button class="secondary-btn" type="button" data-back="1">Back</button>
+        <button class="primary-btn" type="button" id="continueToScreen3">Continue to targeted examination</button>
+      </div>
+    </section>
+
+    <!-- Screen 3: targeted examination -->
+    <section class="screen" id="screen3">
+      <div class="screen-heading">
+        <h2>3. Targeted examination</h2>
+        <button class="secondary-btn" type="button" id="demoExam">Load demo example</button>
+      </div>
+
+      <div class="panel">
+        <h3>General appearance and vital signs</h3>
+        <div class="exam-row" data-exam="general">
+          <span class="exam-label">General appearance</span>
+          <div class="exam-side">
+            <div class="choice-row" data-values="exam-general"></div>
+            <textarea class="free-text-inline" data-exam-free="general" placeholder="Other / free text"></textarea>
+          </div>
+        </div>
+        <div class="exam-row" data-exam="temperature">
+          <span class="exam-label">Body temperature</span>
+          <div class="exam-side">
+            <input type="text" class="free-text-inline visible" data-exam-text="temperature" placeholder="°C or other value" style="width:220px">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="inline-question">
+          <strong>Side examined (for ear findings)</strong>
+          <div class="choice-row" data-choice-group="examinationSide">
+            <label class="choice"><input type="radio" name="examinationSide" value="Right"><span>Right</span></label>
+            <label class="choice"><input type="radio" name="examinationSide" value="Left"><span>Left</span></label>
+            <label class="choice"><input type="radio" name="examinationSide" value="Bilateral"><span>Bilateral</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>External inspection and palpation</h3>
+        <div id="earExamExterior"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Otoscopy</h3>
+        <div id="earExamOtoscopy"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Adjacent ENT examination</h3>
+        <div id="earExamNearby"></div>
+      </div>
+
+      <div class="actions">
+        <button class="secondary-btn" type="button" data-back="2">Back</button>
+        <button class="primary-btn" type="button" id="continueToScreen4">Continue to assessment</button>
+      </div>
+    </section>
+
+    <!-- Screen 4: clinician assessment -->
+    <section class="screen" id="screen4">
+      <div class="screen-heading">
+        <h2>4. Assessment and plan</h2>
+      </div>
+      <div class="notice">Assessment, treatment and follow-up are entered by the responsible clinician.</div>
+      <div class="panel assessment-grid">
+        <div class="field">
+          <label for="assessmentText">Assessment / diagnosis</label>
+          <input id="assessmentText" type="text" placeholder="Enter assessment or diagnosis">
+        </div>
+        <div class="field">
+          <label for="treatmentText">Treatment</label>
+          <textarea id="treatmentText" placeholder="Enter treatment"></textarea>
+        </div>
+        <div class="field">
+          <label for="followupText">Follow-up</label>
+          <textarea id="followupText" placeholder="Enter follow-up"></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="secondary-btn" type="button" data-back="3">Back</button>
+        <button class="primary-btn" type="button" id="createDocumentation">Generate documentation</button>
+      </div>
+    </section>
+
+    <!-- Screen 5: validation and parallel outputs -->
+    <section class="screen" id="screen5">
+      <div class="screen-heading">
+        <div>
+          <h2>5. Validate documentation</h2>
+          <p>The same captured facts are shown in two parallel formats.</p>
+        </div>
+      </div>
+      <div class="output-grid">
+        <div class="panel">
+          <h3>Clinical note</h3>
+          <div class="note-box" id="noteOutput"></div>
+        </div>
+        <div class="panel">
+          <h3>Structured data points</h3>
+          <dl class="structured-list" id="structuredOutput"></dl>
+        </div>
+      </div>
+      <div class="actions left">
+        <button class="secondary-btn" type="button" data-back="4">Back and edit</button>
+        <button class="primary-btn" type="button" id="approveBtn">Approve</button>
+      </div>
+      <div class="validation-status" id="validationStatus">Documentation validated in the prototype.</div>
+    </section>
+  </main>
+
+  <script>
+    // Central data structure: one source of truth for all screens and both outputs.
+    const clinicalData = {
+      areaSelection: [],
+      fever: "",
+      course: "",
+      symptoms: {},
+      symptomFreeText: {},
+      laterality: "",
+      examination: {},
+      examinationFreeText: {},
+      examinationSide: "",
+      assessment: "",
+      treatment: "",
+      followup: ""
+    };
+
+    const choiceLabels = ["Yes", "No", "Unclear", "Not assessed"];
+
+    function setChoiceControls(container, name, labels = choiceLabels) {
+      container.innerHTML = labels.map(label => `
+        <label class="choice">
+          <input type="radio" name="${name}" value="${label}">
+          <span>${label}</span>
+        </label>
+      `).join("");
+    }
+
+    function setAreaCardSelected(card, selected) {
+      card.classList.toggle("selected", selected);
+    }
+
+    function showScreen(number) {
+      document.querySelectorAll(".screen").forEach((screen, index) => {
+        screen.classList.toggle("active", index === number - 1);
+      });
+      document.querySelectorAll(".progress-step").forEach((step, index) => {
+        const stepNumber = index + 1;
+        step.classList.toggle("active", stepNumber === number);
+        step.classList.toggle("complete", stepNumber < number);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function syncCheckboxCards() {
+      document.querySelectorAll("#areaSelection .check-card").forEach(card => {
+        const input = card.querySelector("input");
+        card.classList.toggle("selected", input.checked);
+      });
+      clinicalData.areaSelection = [...document.querySelectorAll("#areaSelection input:checked")]
+        .map(input => input.value);
+      const hasNotImplemented = clinicalData.areaSelection.some(area =>
+        area !== "Upper and lower respiratory tract"
+      );
+      document.getElementById("notImplemented").hidden = !hasNotImplemented;
+    }
+
+    // Populate repeated response controls once, without preselecting a value.
+    document.querySelectorAll("[data-values^='symptom-']").forEach(container => {
+      setChoiceControls(container, container.dataset.values);
+    });
+    document.querySelectorAll("[data-values^='exam-']").forEach(container => {
+      setChoiceControls(container, container.dataset.values, ["Normal", "Abnormal", "Not examined"]);
+    });
+
+    document.querySelectorAll("#areaSelection input").forEach(input => {
+      input.addEventListener("change", syncCheckboxCards);
+    });
+    syncCheckboxCards();
+
+    document.querySelectorAll('[data-choice-group="fever"] input').forEach(input => {
+      input.addEventListener("change", () => clinicalData.fever = input.value);
+    });
+    document.querySelectorAll('[data-choice-group="course"] input').forEach(input => {
+      input.addEventListener("change", () => clinicalData.course = input.value);
+    });
+    document.querySelectorAll('[data-choice-group="laterality"] input').forEach(input => {
+      input.addEventListener("change", () => clinicalData.laterality = input.value);
+    });
+    document.querySelectorAll('[data-choice-group="examinationSide"] input').forEach(input => {
+      input.addEventListener("change", () => clinicalData.examinationSide = input.value);
+    });
+
+    // Expanding an area reveals its relevant items only; expansion and selection are separate states.
+    document.querySelectorAll(".area-toggle").forEach(toggle => {
+      toggle.addEventListener("click", () => {
+        const card = toggle.closest(".area-card");
+        const isOpen = card.classList.toggle("open");
+        if (isOpen) {
+          const areaName = card.dataset.area;
+          setAreaCardSelected(card, true);
+        } else {
+          setAreaCardSelected(card, false);
+        }
+      });
+    });
+
+    // A free-text escape is available for each area.
+    document.querySelectorAll("[data-free]").forEach(textarea => {
+      textarea.classList.add("visible");
+    });
+    document.querySelectorAll("[data-free]").forEach(textarea => {
+      textarea.addEventListener("input", () => {
+        clinicalData.symptomFreeText[textarea.dataset.free] = textarea.value;
+      });
+    });
+
+    document.querySelectorAll(".symptom-row input").forEach(input => {
+      input.addEventListener("change", () => {
+        const symptom = input.closest(".symptom-row").dataset.symptom;
+        clinicalData.symptoms[symptom] = input.value;
+        if (symptom === "oronvark") {
+          document.getElementById("earLaterality").hidden = input.value !== "Yes";
+        }
+      });
+    });
+
+    function loadEarDemo() {
+      const values = {
+        "oronvark": "Yes",
+        "horsel": "Unclear",
+        "sekretion": "No"
+      };
+      Object.entries(values).forEach(([symptom, value]) => {
+        const radio = document.querySelector(`.symptom-row[data-symptom="${symptom}"] input[value="${value}"]`);
+        if (radio) {
+          radio.checked = true;
+          clinicalData.symptoms[symptom] = value;
+        }
+      });
+      const earCard = document.getElementById("earArea");
+      earCard.classList.add("open", "selected");
+      document.getElementById("earLaterality").hidden = false;
+    }
+
+    document.getElementById("demoSymptoms").addEventListener("click", loadEarDemo);
+
+    document.getElementById("continueToScreen2").addEventListener("click", () => {
+      syncCheckboxCards();
+      showScreen(2);
+    });
+
+    document.getElementById("continueToScreen3").addEventListener("click", () => {
+      showScreen(3);
+    });
+
+    // Ear examination configuration. Details appear only after Abnormal is selected.
+    const examConfig = {
+      exterior: [
+        ["tragus", "Tragus", ["Tenderness", "Pain on traction", "Other"]],
+        ["mastoid", "Mastoid process", ["Redness", "Swelling", "Tenderness", "Protruding ear", "Other"]]
+      ],
+      otoscopy: [
+        ["canal", "Ear canal", ["Redness", "Swelling", "Wax", "Discharge/pus", "Deposits", "Other"]],
+        ["tympanicColor", "Tympanic membrane colour", ["Redness", "Yellowish", "Other"]],
+        ["tympanicPosition", "Tympanic membrane position", ["Bulging", "Retracted", "Other"]],
+        ["tympanicStructures", "Tympanic membrane structures", ["Normal", "Abnormal", "Not examined"]],
+        ["perforation", "Perforation", ["Yes", "No", "Not assessed"]]
+      ],
+      nearby: [
+        ["mouth", "Mouth and pharynx", ["Normal", "Abnormal", "Not examined"]],
+        ["nose", "Nose", ["Normal", "Abnormal", "Not examined"]],
+        ["nodes", "Lymph nodes", ["Normal", "Abnormal", "Not examined"]]
+      ]
+    };
+
+    function makeExamRow(key, label, normalOptions) {
+      const isPerforation = key === "perforation";
+      const isSimpleExam = normalOptions.length === 3 &&
+        normalOptions[0] === "Normal" && normalOptions[1] === "Abnormal";
+      const mainLabels = isPerforation ? normalOptions : ["Normal", "Abnormal", "Not examined"];
+      const row = document.createElement("div");
+      row.className = "exam-row";
+      row.dataset.exam = key;
+      row.innerHTML = `
+        <span class="exam-label">${label}</span>
+        <div class="exam-side">
+          <div class="choice-row" data-values="exam-${key}"></div>
+          <div class="refinement" data-refinement="${key}" ${isSimpleExam ? "hidden" : ""}></div>
+          <textarea class="free-text-inline" data-exam-free="${key}" placeholder="Other / free text"></textarea>
+        </div>
+      `;
+      const container = row.querySelector("[data-values]");
+      setChoiceControls(container, container.dataset.values, mainLabels);
+      const refinement = row.querySelector("[data-refinement]");
+      if (!isPerforation && !isSimpleExam) {
+        normalOptions.forEach(option => {
+          const labelEl = document.createElement("label");
+          labelEl.className = "choice";
+          labelEl.innerHTML = `<input type="radio" name="ref-${key}" value="${option}"><span>${option}</span>`;
+          refinement.appendChild(labelEl);
+        });
+        refinement.hidden = true;
+      }
+      if (isSimpleExam) refinement.remove();
+      return row;
+    }
+
+    ["exterior", "otoscopy", "nearby"].forEach(group => {
+      const targetId = group === "exterior" ? "earExamExterior" :
+        group === "otoscopy" ? "earExamOtoscopy" : "earExamNearby";
+      examConfig[group].forEach(([key, label, options]) => {
+        document.getElementById(targetId).appendChild(makeExamRow(key, label, options));
+      });
+    });
+
+    // Capture ear findings and reveal refinements only after Abnormal is chosen.
+    document.querySelectorAll("[data-values^='exam-']").forEach(container => {
+      container.addEventListener("change", event => {
+        if (!event.target.matches("input")) return;
+        const key = container.dataset.values.replace("exam-", "");
+        clinicalData.examination[key] = event.target.value;
+
+        const row = container.closest(".exam-row");
+        const refinement = row ? row.querySelector("[data-refinement]") : null;
+        const freeText = row ? row.querySelector("[data-exam-free]") : null;
+        if (refinement) {
+          refinement.hidden = event.target.value !== "Abnormal";
+          if (event.target.value !== "Abnormal") {
+            refinement.querySelectorAll("input").forEach(input => input.checked = false);
+          }
+        }
+        if (freeText) {
+          const isCustom = !refinement || key === "general";
+          freeText.classList.toggle("visible", event.target.value === "Abnormal" && isCustom);
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-refinement]").forEach(refinement => {
+      refinement.addEventListener("change", event => {
+        if (!event.target.matches("input")) return;
+        const key = refinement.dataset.refinement;
+        clinicalData.examination[key + "Refinement"] = event.target.value;
+        const freeText = refinement.closest(".exam-row").querySelector("[data-exam-free]");
+        freeText.classList.toggle("visible", event.target.value === "Other");
+      });
+    });
+
+    document.querySelectorAll("[data-exam-free]").forEach(textarea => {
+      textarea.addEventListener("input", () => {
+        clinicalData.examinationFreeText[textarea.dataset.examFree] = textarea.value;
+      });
+    });
+    document.querySelectorAll("[data-exam-text]").forEach(input => {
+      input.addEventListener("input", () => {
+        clinicalData.examination[input.dataset.examText] = input.value;
+      });
+    });
+
+    function loadExamDemo() {
+      const mainValues = {
+        general: "Normal",
+        tragus: "Normal",
+        mastoid: "Normal",
+        canal: "Normal",
+        tympanicColor: "Abnormal",
+        tympanicPosition: "Abnormal",
+        perforation: "No"
+      };
+      Object.entries(mainValues).forEach(([key, value]) => {
+        const radio = document.querySelector(`.exam-row[data-exam="${key}"] input[value="${value}"]`);
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+      clinicalData.examination.tympanicColorRefinement = "Redness";
+      clinicalData.examination.tympanicPositionRefinement = "Bulging";
+      setRefinementChecked("tympanicColor", "Redness");
+      setRefinementChecked("tympanicPosition", "Bulging");
+    }
+
+    function setRefinementChecked(key, value) {
+      const radio = document.querySelector(`.refinement[data-refinement="${key}"] input[value="${value}"]`);
+      if (radio) radio.checked = true;
+    }
+
+    document.getElementById("demoExam").addEventListener("click", loadExamDemo);
+
+    document.getElementById("continueToScreen4").addEventListener("click", () => showScreen(4));
+
+    // Clinician-entered assessment fields remain editable and are not inferred.
+    ["assessmentText", "treatmentText", "followupText"].forEach(id => {
+      document.getElementById(id).addEventListener("input", event => {
+        const key = id === "assessmentText" ? "assessment" :
+          id === "treatmentText" ? "treatment" : "followup";
+        clinicalData[key] = event.target.value;
+      });
+    });
+
+    function buildDocumentation() {
+      // Outputs are assembled only from values explicitly present in clinicalData.
+      const sections = {
+        Current: [],
+        Examination: [],
+        Assessment: [],
+        Plan: [],
+        "Follow-up": []
+      };
+      const structuredEntries = [];
+      const addFact = (section, label, value, noteText) => {
+        if (value === undefined || value === null || String(value).trim() === "") return;
+        const capturedValue = String(value).trim();
+        sections[section].push(noteText || `${label}: ${capturedValue}`);
+        structuredEntries.push([label, capturedValue]);
+      };
+
+      if (clinicalData.areaSelection.length) {
+        addFact("Current", "Selected problem areas", clinicalData.areaSelection.join(", "));
+      }
+      if (clinicalData.course) addFact("Current", "Course", clinicalData.course);
+      if (clinicalData.fever) addFact("Current", "Fever ≥38.5 °C", clinicalData.fever);
+
+      const symptomLabels = {
+        halsont: "Sore throat / pain on swallowing",
+        lymf: "Swollen or tender cervical lymph nodes",
+        rodnad: "Pharyngeal redness/swelling or tonsillar exudate",
+        nastappa: "Nasal congestion / runny nose",
+        nysning: "Sneezing / irritation",
+        ansiktstryck: "Facial pressure or pain",
+        luktsinne: "Reduced sense of smell / upper jaw tooth pain",
+        oronvark: "Ear pain",
+        horsel: "Blocked-ear sensation / hearing changes",
+        sekretion: "Ear discharge",
+        hosta: "Cough",
+        andfad: "Shortness of breath / laboured breathing",
+        brost: "Pleuritic chest pain",
+        feberfrossa: "Fever / chills / feeling unwell",
+        pipande: "Wheezing"
+      };
+      Object.entries(symptomLabels).forEach(([key, label]) => {
+        const value = clinicalData.symptoms[key];
+        if (!value) return;
+        if (key === "oronvark" && value === "Yes") {
+          const laterality = clinicalData.laterality;
+          const painText = laterality === "Right" ? "Right-sided ear pain" :
+            laterality === "Left" ? "Left-sided ear pain" :
+            laterality === "Bilateral" ? "Bilateral ear pain" :
+            "Ear pain";
+          addFact("Current", label, value, painText);
+          if (laterality) addFact("Current", "Ear pain laterality", laterality);
+        } else {
+          addFact("Current", label, value);
+        }
+      });
+
+      const freeTextAreas = {
+        svalg: "Pharynx and tonsils",
+        nasa: "Nose and sinuses",
+        oron: "Ear",
+        luftror: "Bronchi and lungs"
+      };
+      Object.entries(freeTextAreas).forEach(([key, area]) => {
+        const text = clinicalData.symptomFreeText[key];
+        if (text) addFact("Current", `Other / free text (${area})`, text);
+      });
+
+      if (clinicalData.examinationSide) {
+        addFact("Examination", "Side examined (ear findings)", clinicalData.examinationSide);
+      }
+      if (clinicalData.examination.general) {
+        const generalFreeText = clinicalData.examinationFreeText.general;
+        const generalValue = generalFreeText
+          ? `${clinicalData.examination.general} – ${generalFreeText}`
+          : clinicalData.examination.general;
+        addFact("Examination", "General appearance", generalValue);
+      }
+      if (clinicalData.examination.temperature) {
+        addFact("Examination", "Body temperature", clinicalData.examination.temperature);
+      }
+
+      const earSpecificFindings = new Set([
+        "tragus", "mastoid", "canal", "tympanicColor",
+        "tympanicPosition", "tympanicStructures", "perforation"
+      ]);
+      examConfig.exterior.concat(examConfig.otoscopy, examConfig.nearby).forEach(([key, label]) => {
+        const value = clinicalData.examination[key];
+        if (!value) return;
+        let capturedValue = value;
+        const refinement = clinicalData.examination[`${key}Refinement`];
+        const freeText = clinicalData.examinationFreeText[key];
+        if (refinement) capturedValue += ` – ${refinement}`;
+        if (freeText) capturedValue += ` – ${freeText}`;
+        const side = earSpecificFindings.has(key) ? clinicalData.examinationSide : "";
+        const sideLabel = side ? `${side} – ${label}` : label;
+        addFact("Examination", sideLabel, capturedValue);
+      });
+      Object.entries(clinicalData.examinationFreeText).forEach(([key, text]) => {
+        if (!text || key === "general" || examConfig.exterior.concat(examConfig.otoscopy, examConfig.nearby)
+          .some(([examKey]) => examKey === key)) return;
+        addFact("Examination", `Other / free text (${key})`, text);
+      });
+
+      if (clinicalData.assessment) addFact("Assessment", "Assessment / diagnosis", clinicalData.assessment);
+      if (clinicalData.treatment) addFact("Plan", "Treatment", clinicalData.treatment);
+      if (clinicalData.followup) addFact("Follow-up", "Follow-up", clinicalData.followup);
+
+      const currentProse = [];
+      const examinationProse = [];
+      const course = clinicalData.course;
+      const fever = clinicalData.fever;
+      const earPain = clinicalData.symptoms.oronvark;
+      const painLaterality = clinicalData.laterality;
+      const painText = painLaterality === "Right" ? "right-sided ear pain" :
+        painLaterality === "Left" ? "left-sided ear pain" :
+        painLaterality === "Bilateral" ? "bilateral ear pain" : "ear pain";
+
+      let presentation = "";
+      if (course === "Acute" && fever === "Yes") presentation = "Acute febrile illness";
+      else if (course === "Acute" && fever === "No") presentation = "Acute presentation without fever ≥38.5 °C";
+      else if (course === "Acute" && fever === "Unclear") presentation = "Acute presentation; fever ≥38.5 °C unclear";
+      else if (course === "Acute") presentation = "Acute presentation";
+      else if (course === ">2–3 weeks" && fever === "Yes") presentation = "Symptoms for >2–3 weeks with fever ≥38.5 °C";
+      else if (course === ">2–3 weeks" && fever === "No") presentation = "Symptoms for >2–3 weeks without fever ≥38.5 °C";
+      else if (course === ">2–3 weeks" && fever === "Unclear") presentation = "Symptoms for >2–3 weeks; fever ≥38.5 °C unclear";
+      else if (course === ">2–3 weeks") presentation = "Symptoms for >2–3 weeks";
+      else if (course === "Unclear" && fever === "Yes") presentation = "Febrile illness; course unclear";
+      else if (course === "Unclear" && fever === "No") presentation = "Course unclear; no fever ≥38.5 °C";
+      else if (course === "Unclear" && fever === "Unclear") presentation = "Course and fever ≥38.5 °C unclear";
+      else if (course === "Unclear") presentation = "Course unclear";
+      else if (fever === "Yes") presentation = "Febrile illness";
+      else if (fever === "No") presentation = "No fever ≥38.5 °C";
+      else if (fever === "Unclear") presentation = "Fever ≥38.5 °C unclear";
+
+      if (presentation && earPain === "Yes") {
+        currentProse.push(`${presentation} with ${painText}.`);
+      } else if (presentation) {
+        currentProse.push(`${presentation}.`);
+      } else if (earPain === "Yes") {
+        currentProse.push(`${painText.charAt(0).toUpperCase()}${painText.slice(1)}.`);
+      }
+      if (earPain === "No") currentProse.push("No ear pain.");
+      else if (earPain === "Unclear") currentProse.push("Ear pain unclear.");
+
+      const symptomProse = {
+        halsont: {
+          Yes: "Sore throat or pain on swallowing.",
+          No: "No sore throat or pain on swallowing.",
+          Unclear: "Sore throat or pain on swallowing unclear."
+        },
+        lymf: {
+          Yes: "Swollen or tender cervical lymph nodes.",
+          No: "No swollen or tender cervical lymph nodes.",
+          Unclear: "Cervical lymph node status unclear."
+        },
+        rodnad: {
+          Yes: "Pharyngeal redness/swelling or tonsillar exudate.",
+          No: "No pharyngeal redness/swelling or tonsillar exudate.",
+          Unclear: "Pharyngeal redness/swelling or tonsillar exudate unclear."
+        },
+        nastappa: {
+          Yes: "Nasal congestion or runny nose.",
+          No: "No nasal congestion or runny nose.",
+          Unclear: "Nasal congestion or runny nose unclear."
+        },
+        nysning: {
+          Yes: "Sneezing or nasal irritation.",
+          No: "No sneezing or nasal irritation.",
+          Unclear: "Sneezing or nasal irritation unclear."
+        },
+        ansiktstryck: {
+          Yes: "Facial pressure or pain.",
+          No: "No facial pressure or pain.",
+          Unclear: "Facial pressure or pain unclear."
+        },
+        luktsinne: {
+          Yes: "Reduced sense of smell or upper jaw tooth pain.",
+          No: "No reduced sense of smell or upper jaw tooth pain.",
+          Unclear: "Reduced sense of smell or upper jaw tooth pain unclear."
+        },
+        horsel: {
+          Yes: "Blocked-ear sensation or hearing changes.",
+          No: "No blocked-ear sensation or hearing changes.",
+          Unclear: "Blocked-ear sensation or hearing changes unclear."
+        },
+        sekretion: {
+          Yes: "Ear discharge.",
+          No: "No ear discharge.",
+          Unclear: "Ear discharge unclear."
+        },
+        hosta: {
+          Yes: "Cough.",
+          No: "No cough.",
+          Unclear: "Cough unclear."
+        },
+        andfad: {
+          Yes: "Shortness of breath or laboured breathing.",
+          No: "No shortness of breath or laboured breathing.",
+          Unclear: "Shortness of breath or laboured breathing unclear."
+        },
+        brost: {
+          Yes: "Pleuritic chest pain.",
+          No: "No pleuritic chest pain.",
+          Unclear: "Pleuritic chest pain unclear."
+        },
+        feberfrossa: {
+          Yes: "Fever, chills or feeling unwell.",
+          No: "No fever, chills or feeling unwell.",
+          Unclear: "Fever, chills or feeling unwell unclear."
+        },
+        pipande: {
+          Yes: "Wheezing.",
+          No: "No wheezing.",
+          Unclear: "Wheezing unclear."
+        }
+      };
+      Object.entries(symptomProse).forEach(([key, phrases]) => {
+        const value = clinicalData.symptoms[key];
+        if (value && value !== "Not assessed" && phrases[value]) {
+          currentProse.push(phrases[value]);
+        }
+      });
+
+      Object.values(clinicalData.symptomFreeText).forEach(text => {
+        if (text && text.trim()) currentProse.push(text.trim());
+      });
+
+      const generalAppearance = clinicalData.examination.general;
+      if (generalAppearance === "Normal") examinationProse.push("General appearance normal.");
+      else if (generalAppearance === "Abnormal") {
+        const detail = clinicalData.examinationFreeText.general;
+        examinationProse.push(detail
+          ? `General appearance abnormal: ${detail.trim()}.`
+          : "General appearance abnormal.");
+      }
+
+      const temperature = String(clinicalData.examination.temperature || "").trim();
+      if (temperature) {
+        const numericTemperature = temperature.match(/^(-?\d+(?:[.,]\d+)?)\s*(?:°?\s*C)?$/i);
+        const temperatureText = numericTemperature
+          ? `Temperature ${Number(numericTemperature[1].replace(",", ".")).toFixed(1)} °C.`
+          : `Temperature ${temperature}.`;
+        examinationProse.push(temperatureText);
+      }
+
+      const exam = clinicalData.examination;
+      const refinement = key => exam[`${key}Refinement`];
+      const examFreeText = key => clinicalData.examinationFreeText[key];
+      const selectedSide = ["Right", "Left", "Bilateral"].includes(clinicalData.examinationSide)
+        ? clinicalData.examinationSide
+        : "";
+      const earClauses = [];
+
+      const externalFindings = [];
+      if (exam.tragus === "Normal" && exam.mastoid === "Normal") {
+        externalFindings.push("tragus and mastoid process non-tender");
+      } else if (exam.tragus === "Normal") {
+        externalFindings.push("tragus non-tender");
+      } else if (exam.tragus === "Abnormal") {
+        const detail = refinement("tragus");
+        const freeText = examFreeText("tragus");
+        externalFindings.push(detail === "Tenderness" ? "tragus tender" :
+          detail === "Pain on traction" ? "pain on traction" :
+          freeText ? freeText.trim() : "tragus abnormal");
+      }
+      if (exam.mastoid === "Normal" && exam.tragus !== "Normal") {
+        externalFindings.push("mastoid process non-tender");
+      }
+      else if (exam.mastoid === "Abnormal") {
+        const detail = refinement("mastoid");
+        const freeText = examFreeText("mastoid");
+        const finding = {
+          Redness: "red",
+          Swelling: "swollen",
+          Tenderness: "tender",
+          "Protruding ear": "protruding"
+        }[detail];
+        externalFindings.push(finding ? `mastoid process ${finding}` :
+          freeText ? freeText.trim() : "mastoid process abnormal");
+      }
+      if (externalFindings.length) earClauses.push(externalFindings.join("; "));
+
+      if (exam.canal === "Normal") earClauses.push("ear canal normal");
+      else if (exam.canal === "Abnormal") {
+        const detail = refinement("canal");
+        const freeText = examFreeText("canal");
+        const finding = {
+          Redness: "ear canal red",
+          Swelling: "ear canal swollen",
+          Wax: "wax in the ear canal",
+          "Discharge/pus": "ear canal discharge/pus",
+          Deposits: "ear canal deposits"
+        }[detail];
+        earClauses.push(finding || (freeText ? freeText.trim() : "ear canal abnormal"));
+      }
+
+      const tympanicFindings = [];
+      if (exam.tympanicColor === "Normal") tympanicFindings.push("normal in colour");
+      else if (exam.tympanicColor === "Abnormal") {
+        const detail = refinement("tympanicColor");
+        const freeText = examFreeText("tympanicColor");
+        const finding = { Redness: "red", Yellowish: "yellowish" }[detail];
+        tympanicFindings.push(finding || (freeText ? freeText.trim() : "abnormal in colour"));
+      }
+      if (exam.tympanicPosition === "Normal") tympanicFindings.push("normally positioned");
+      else if (exam.tympanicPosition === "Abnormal") {
+        const detail = refinement("tympanicPosition");
+        const freeText = examFreeText("tympanicPosition");
+        const finding = { Bulging: "bulging", Retracted: "retracted" }[detail];
+        tympanicFindings.push(finding || (freeText ? freeText.trim() : "abnormally positioned"));
+      }
+      const structureDescription = exam.tympanicStructures === "Normal" ? "structures normal" :
+        exam.tympanicStructures === "Abnormal" ? "structures abnormal" : "";
+      if (tympanicFindings.length || structureDescription || exam.perforation === "Yes" || exam.perforation === "No") {
+        let tympanicText = tympanicFindings.length
+          ? `Tympanic membrane ${tympanicFindings.join(" and ")}`
+          : structureDescription ? `Tympanic membrane ${structureDescription}` : "Tympanic membrane";
+        if (tympanicFindings.length && structureDescription) tympanicText += `; ${structureDescription}`;
+        if (exam.perforation === "No") tympanicText += ", without perforation";
+        else if (exam.perforation === "Yes") tympanicText += ", with perforation";
+        earClauses.push(tympanicText);
+      }
+
+      if (earClauses.length) {
+        const earPrefix = selectedSide === "Bilateral" ? "Bilateral ears: " :
+          selectedSide ? `${selectedSide} ear: ` : "";
+        const earSentences = earClauses.map((clause, index) => {
+          const sentence = index === 0 && earPrefix
+            ? clause.charAt(0).toLowerCase() + clause.slice(1)
+            : clause.charAt(0).toUpperCase() + clause.slice(1);
+          return `${sentence}.`;
+        });
+        earSentences[0] = `${earPrefix}${earSentences[0]}`;
+        examinationProse.push(earSentences.join(" "));
+      }
+
+      const nearbyLabels = {
+        mouth: "Mouth and pharynx",
+        nose: "Nose",
+        nodes: "Lymph nodes"
+      };
+      Object.entries(nearbyLabels).forEach(([key, label]) => {
+        if (exam[key] === "Normal") examinationProse.push(`${label} normal.`);
+        else if (exam[key] === "Abnormal") examinationProse.push(`${label} abnormal.`);
+      });
+
+      const readableSections = [
+        ["CURRENT", currentProse],
+        ["EXAMINATION", examinationProse],
+        ["ASSESSMENT", clinicalData.assessment ? [clinicalData.assessment] : []],
+        ["PLAN", clinicalData.treatment ? [clinicalData.treatment] : []],
+        ["FOLLOW-UP", clinicalData.followup ? [clinicalData.followup] : []]
+      ];
+      const note = readableSections
+        .map(([heading, facts]) => `${heading}\n${facts.join(" ")}`)
+        .join("\n\n");
+      document.getElementById("noteOutput").textContent = note;
+
+      const structured = document.getElementById("structuredOutput");
+      structured.innerHTML = "";
+      (structuredEntries.length ? structuredEntries : [["Data", "No data entered."]]).forEach(([key, value]) => {
+        const dt = document.createElement("dt");
+        const dd = document.createElement("dd");
+        dt.textContent = key;
+        dd.textContent = value;
+        structured.appendChild(dt);
+        structured.appendChild(dd);
+      });
+    }
+
+    document.getElementById("createDocumentation").addEventListener("click", () => {
+      buildDocumentation();
+      document.getElementById("validationStatus").classList.remove("visible");
+      showScreen(5);
+    });
+
+    document.getElementById("approveBtn").addEventListener("click", () => {
+      document.getElementById("validationStatus").classList.add("visible");
+    });
+
+    document.querySelectorAll("[data-back]").forEach(button => {
+      button.addEventListener("click", () => showScreen(Number(button.dataset.back)));
+    });
+
+    function resetPrototype() {
+      Object.keys(clinicalData).forEach(key => {
+        if (Array.isArray(clinicalData[key])) clinicalData[key] = [];
+        else if (typeof clinicalData[key] === "object" && clinicalData[key] !== null) {
+          Object.keys(clinicalData[key]).forEach(child => delete clinicalData[key][child]);
+        } else clinicalData[key] = "";
+      });
+      document.querySelectorAll("input").forEach(input => {
+        if (input.type === "checkbox" || input.type === "radio") input.checked = false;
+        else if (input.type === "text") input.value = "";
+      });
+      document.querySelectorAll("textarea").forEach(textarea => textarea.value = "");
+      document.querySelectorAll(".check-card").forEach(card => card.classList.remove("selected"));
+      document.querySelectorAll(".area-card").forEach(card => card.classList.remove("open", "selected"));
+      document.querySelectorAll("[data-refinement]").forEach(refinement => refinement.hidden = true);
+      document.getElementById("earLaterality").hidden = true;
+      document.querySelectorAll(".free-text-inline").forEach(textarea => {
+        textarea.classList.toggle("visible", textarea.matches("[data-free], [data-exam-free]") ? false : false);
+      });
+      document.querySelectorAll("[data-free]").forEach(textarea => textarea.classList.add("visible"));
+      document.querySelectorAll("[data-exam-text]").forEach(input => input.classList.add("visible"));
+      document.querySelectorAll("[data-exam-free]").forEach(textarea => textarea.classList.remove("visible"));
+      document.getElementById("validationStatus").classList.remove("visible");
+      document.getElementById("noteOutput").textContent = "";
+      document.getElementById("structuredOutput").innerHTML = "";
+      syncCheckboxCards();
+      showScreen(1);
+    }
+
+    document.getElementById("resetBtn").addEventListener("click", resetPrototype);
+  </script>
+</body>
+</html>

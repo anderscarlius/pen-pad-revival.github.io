@@ -6,15 +6,18 @@ permalink: /docs/clinergy/
 
 # Clinergy: extractor and running the demo in Wine
 
-Clinergy was a structured data entry system for primary care built on the PEN&PAD approach, "built on top of a live GALEN terminology server delivering an adaptation of a GALEN Common Reference Model" ([OpenGALEN software page](https://opengalen.eggbird.eu/sources/software.html)). Alan Rector demonstrates it in [interview part 1](/interviews/alan-rector-part-1/#t=685), and the [thumb pain walkthrough](/docs/clinergy-thumb-pain-demo/) goes through that demo screen by screen. This page covers the YAML extractor and how to run the 1998 Windows demo under Wine on Linux. The [front page](/#clinergy) has a short summary.
+Clinergy was a structured data entry system for primary care built on the PEN&PAD approach, "built on top of a live GALEN terminology server delivering an adaptation of a GALEN Common Reference Model" ([OpenGALEN software page](https://opengalen.eggbird.eu/sources/software.html)). Alan Rector demonstrates it in [interview part 1](/interviews/alan-rector-part-1/#t=685), and the [thumb pain walkthrough](/docs/clinergy-thumb-pain-demo/) goes through that demo screen by screen. This page covers the YAML extractor and how to run the 1998 Windows demo under Wine on Linux. See also [front page](/#clinergy).
 
 ## Demo download
 
 [ClinergyDemo.zip](https://opengalen.eggbird.eu/download/ClinergyDemo.zip) (6 MB, a 1998 Windows installer) is on the OpenGALEN mirror. There is also a [copy archived from opengalen.org](https://web.archive.org/web/20070818150258/http://www.opengalen.org/download/clinergydemo.zip) on the Internet Archive. Its raw capture (`…/20070818150258id_/…`) is byte-identical to the mirror file (sha256 `f138c38b24de630ce0c89bc8018dbc68fc2b17e040235c9c01e10761d8114270`, checked 2026-11-18). The demo is © 1997-8 Semantic Technologies Ltd / Victoria University of Manchester, All Rights Reserved.
 
 ## Extractor
+[clinergy-extractor](https://github.com/erik-sundvalls-bots/clinergy-extractor) turns your copy of the zip into human-readable YAML: one file per data-entry form, plus concepts, examinations, summary-sentence rules and body maps. 
 
-[clinergy-extractor](https://github.com/erik-sundvalls-bots/clinergy-extractor) turns your copy of the zip into human-readable YAML: one file per data-entry form, plus concepts, examinations, summary-sentence rules and body maps. It also helps map Clinergy names to OpenGALEN 8: exact matches first, then a review worklist for a person or an AI agent, using a small OpenGALEN MCP server.
+A list of the forms is [available here on the website](https://github.com/pen-pad-revival/pen-pad-revival.github.io/blob/main/docs/clinergy/list-of-clinergy-forms.md)
+
+The extractor also helps creating a first vereion of map between Clinergy names to OpenGALEN 8: exact matches first, then a review worklist for a person or an AI agent, using a small OpenGALEN MCP server.
 
 It also exports the body-map pictures, icons, cursors and bitmaps to `images/` (BMP/ICO/CUR converted to PNG; ICO/CUR originals kept; WMF kept as `.wmf`), with an `images.yaml` index, and writes body-map hotspot coordinates in `bodymap.yaml`.
 
